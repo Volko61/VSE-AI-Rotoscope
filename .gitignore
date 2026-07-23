@@ -1,0 +1,23 @@
+# Wheels et modeles telecharges (gros binaires, regeneres par les scripts tools/)
+auto_rotoscope/wheels/*.whl
+auto_rotoscope/models/**/*.onnx
+auto_rotoscope/models/**/*.ort
+
+# Builds
+*.zip
+dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

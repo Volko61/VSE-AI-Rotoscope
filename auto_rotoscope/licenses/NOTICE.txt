@@ -1,0 +1,24 @@
+Third-party components bundled with SAM2 Roto
+=============================================
+
+This add-on's own source code is licensed GPL-3.0-or-later.
+
+The following third-party components are redistributed in the built extension.
+All are compatible with the GPL. Place the full upstream license text for each
+alongside this file before publishing (fetch_assets.py leaves wheels' own
+license metadata inside the wheels).
+
+1. SAM 2.1 model weights (ONNX)
+   - Upstream: Meta "Segment Anything Model 2" (facebookresearch/sam2)
+   - ONNX export: vietanhdev / SharpAI (Hugging Face)
+   - License: Apache-2.0
+
+2. onnxruntime / onnxruntime-directml
+   - Upstream: Microsoft
+   - License: MIT
+
+3. opencv-python-headless
+   - Upstream: OpenCV project / opencv-python packaging
+   - License: Apache-2.0 (OpenCV 4.x) / MIT (packaging)
+
+numpy is provided by Blender and is not bundled.

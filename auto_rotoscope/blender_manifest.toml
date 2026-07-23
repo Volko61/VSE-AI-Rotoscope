@@ -1,0 +1,53 @@
+schema_version = "1.0.0"
+
+id = "auto_rotoscope"
+version = "0.1.0"
+name = "Auto Rotoscope VSE"
+tagline = "Rotoscopie automatique par SAM 2.1 dans le montage video"
+maintainer = "Volko <volkovolko76@gmail.com>"
+type = "add-on"
+
+website = "https://github.com/volko/auto-rotoscope"
+
+# Tags valides pour un add-on. "Sequencer" cible le montage video (VSE).
+tags = ["Sequencer"]
+
+# Blender 5.1+ ships Python 3.13, which our cp313 wheels target. (Blender 4.2–5.0
+# used Python 3.11 — targeting those would need cp311 wheels instead.)
+blender_version_min = "5.1.0"
+
+# SPDX. L'extension est sous GPL-3.0 ; SAM 2.1 (poids/ONNX) est Apache-2.0 (compatible).
+license = ["SPDX:GPL-3.0-or-later"]
+copyright = [
+  "2026 Volko",
+  "2024 Meta Platforms, Inc. (modeles SAM 2.1, Apache-2.0)",
+]
+
+# Builds separes par OS via:  blender --command extension build --split-platforms
+platforms = ["windows-x64", "linux-x64"]
+
+# --- Wheels embarquees ---------------------------------------------------
+# ATTENTION : liste GENEREE par `python scripts/fetch_assets.py`, qui telecharge
+# onnxruntime(-directml) + opencv-python-headless pour cp311 win_amd64 et
+# manylinux x86_64, les place dans ./wheels/ et imprime les noms exacts a coller
+# ici. numpy N'EST PAS embarque (Blender le fournit). Noms ci-dessous indicatifs.
+# (Cle de niveau racine : doit rester AVANT toute table [ ... ].)
+wheels = [
+  "./wheels/onnxruntime-1.27.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+  "./wheels/onnxruntime_directml-1.24.4-cp313-cp313-win_amd64.whl",
+  "./wheels/opencv_python_headless-4.10.0.84-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+  "./wheels/opencv_python_headless-4.10.0.84-cp37-abi3-win_amd64.whl",
+]
+
+# Tout est embarque -> aucun acces reseau. Seul l'acces fichier est requis
+# (ecriture des sequences de mattes generees).
+[permissions]
+files = "Enregistre les sequences de mattes alpha generees"
+
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "*.pyc",
+  "*.part",
+  "/models/README.txt",
+]
