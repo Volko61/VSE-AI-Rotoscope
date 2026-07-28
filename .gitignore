@@ -3,7 +3,7 @@ auto_rotoscope/wheels/*.whl
 auto_rotoscope/models/**/*.onnx
 auto_rotoscope/models/**/*.ort
 
-# Builds
+# Builds (scripts/build.py writes here)
 *.zip
 dist/
 build/

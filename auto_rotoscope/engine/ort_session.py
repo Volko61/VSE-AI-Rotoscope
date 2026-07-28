@@ -38,10 +38,15 @@ def available_providers() -> list[str]:
     return list(ort.get_available_providers())
 
 
+# Accelerated providers, in the order we prefer them. DirectML covers any
+# DX12 GPU on Windows, CoreML the Apple GPU/Neural Engine on macOS. CUDA is
+# listed for off-platform builds only — the CUDA wheel exceeds the 200 MB cap.
+_GPU_PROVIDERS = ("DmlExecutionProvider", "CoreMLExecutionProvider", "CUDAExecutionProvider")
+
+
 def has_gpu() -> bool:
     """True if a GPU-capable execution provider is present."""
-    gpu_eps = {"DmlExecutionProvider", "CUDAExecutionProvider"}
-    return bool(gpu_eps.intersection(available_providers()))
+    return bool(set(_GPU_PROVIDERS).intersection(available_providers()))
 
 
 def _resolve_providers(mode: str) -> list[str]:
@@ -56,7 +61,7 @@ def _resolve_providers(mode: str) -> list[str]:
         return cpu
 
     # Preferred GPU providers, in priority order, filtered by availability.
-    gpu = [ep for ep in ("DmlExecutionProvider", "CUDAExecutionProvider") if ep in avail]
+    gpu = [ep for ep in _GPU_PROVIDERS if ep in avail]
 
     if mode == "GPU":
         # Still append CPU as a safety net so a GPU init failure degrades

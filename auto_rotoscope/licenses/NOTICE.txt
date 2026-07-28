@@ -1,24 +1,36 @@
-Third-party components bundled with SAM2 Roto
-=============================================
+Third-party components bundled with Auto Rotoscope VSE
+======================================================
 
-This add-on's own source code is licensed GPL-3.0-or-later.
+The add-on's own source code is licensed GPL-3.0-or-later. The full text is in
+GPL-3.0.txt in this directory.
 
-The following third-party components are redistributed in the built extension.
-All are compatible with the GPL. Place the full upstream license text for each
-alongside this file before publishing (fetch_assets.py leaves wheels' own
-license metadata inside the wheels).
+The components below are redistributed inside the built extension. All are
+GPL-compatible. Their full license texts are included here.
 
-1. SAM 2.1 model weights (ONNX)
-   - Upstream: Meta "Segment Anything Model 2" (facebookresearch/sam2)
-   - ONNX export: vietanhdev / SharpAI (Hugging Face)
-   - License: Apache-2.0
+1. SAM 2.1 model weights (ONNX graphs)
+   Files:    models/sam2.1_hiera_tiny/{encoder,decoder}.onnx
+   Upstream: Meta Platforms, Inc. — "Segment Anything Model 2"
+             https://github.com/facebookresearch/sam2
+   ONNX export: https://huggingface.co/vietanhdev/segment-anything-2.1-onnx-models
+   Copyright: 2024 Meta Platforms, Inc. and affiliates
+   License:  Apache-2.0  →  Apache-2.0.txt
 
-2. onnxruntime / onnxruntime-directml
-   - Upstream: Microsoft
-   - License: MIT
+2. onnxruntime (Linux) / onnxruntime-directml (Windows)
+   Files:    wheels/onnxruntime*.whl
+   Upstream: Microsoft Corporation
+             https://github.com/microsoft/onnxruntime
+   License:  MIT  →  onnxruntime-LICENSE.txt
+   Its own bundled dependencies: onnxruntime-ThirdPartyNotices.txt
 
 3. opencv-python-headless
-   - Upstream: OpenCV project / opencv-python packaging
-   - License: Apache-2.0 (OpenCV 4.x) / MIT (packaging)
+   Files:    wheels/opencv_python_headless*.whl
+   Upstream: OpenCV project; PyPI packaging by Olli-Pekka Heinisuo
+             https://github.com/opencv/opencv-python
+   License:  Apache-2.0 (OpenCV 4.x) → Apache-2.0.txt
+             MIT (the packaging itself) → opencv-python-LICENSE.txt
+   Its own bundled dependencies: opencv-python-LICENSE-3RD-PARTY.txt
 
-numpy is provided by Blender and is not bundled.
+numpy is provided by Blender and is therefore not bundled.
+
+No component is modified: the wheels are unaltered PyPI artifacts and the ONNX
+graphs are unaltered exports.

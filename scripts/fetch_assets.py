@@ -52,12 +52,29 @@ MODEL_ZIP_URL = (
     "resolve/main/sam2.1_hiera_tiny_20260221.zip"
 )
 
-# (package spec, platform tag) pairs to download as wheels.
+# (package spec, platform tag) pairs to download as wheels. The tags map to
+# Blender's `platforms` identifiers as follows (see blender_ext.py):
+#   win_amd64              -> windows-x64
+#   manylinux*_x86_64      -> linux-x64
+#   macosx_*_arm64         -> macos-arm64  (the version prefix is ignored)
+#
+# macOS Intel is not built: Blender dropped macOS x86_64 builds at 5.0 and we
+# require 5.1+. Apple Silicon only.
+#
+# onnxruntime is pinned to 1.23.2 on macOS: it is the oldest release with
+# arch-specific mac wheels (16 MB) instead of universal2 (34 MB, half of it a
+# dead x86_64 slice), and the saving is what keeps the macOS ZIP off the cap.
+# It requires macOS 13+. Newer releases only publish macosx_14_0_arm64, which
+# would raise the OS floor to macOS 14 for no size benefit.
+ORT_MACOS_VERSION = "1.23.2"
+
 WHEEL_TARGETS = [
     ("onnxruntime-directml", "win_amd64"),
     ("onnxruntime", "manylinux_2_28_x86_64"),
+    (f"onnxruntime=={ORT_MACOS_VERSION}", "macosx_13_0_arm64"),
     (f"opencv-python-headless=={OPENCV_VERSION}", "win_amd64"),
     (f"opencv-python-headless=={OPENCV_VERSION}", "manylinux2014_x86_64"),
+    (f"opencv-python-headless=={OPENCV_VERSION}", "macosx_11_0_arm64"),
 ]
 
 

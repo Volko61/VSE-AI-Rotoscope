@@ -1,108 +1,131 @@
 # Auto Rotoscope VSE
 
-Extension Blender de **rotoscopie automatique** pour le **Video Sequence Editor (VSE)**,
-basée sur **SAM 2.1** exécuté via **ONNX Runtime** (sans PyTorch).
+Automatic rotoscoping for Blender's **Video Sequence Editor**, powered by
+**SAM 2.1** running on **ONNX Runtime** (no PyTorch).
 
-On clique sur un objet dans l'aperçu, SAM 2.1 génère le masque, la sélection se
-**propage** sur la séquence, et on **ajoute/retire des points** pour corriger. La sortie
-est une **séquence de mattes alpha** (PNG) réutilisable dans le VSE / le compositing.
+Click an object in the preview, SAM 2.1 produces the mask, the selection is
+**propagated** across the frame range, and you **add or remove points** to
+correct it. The output is an **alpha matte PNG sequence** you can reuse in the
+VSE or in compositing.
 
-- **CPU par défaut**, **GPU exploité si présent** (best-effort).
-- **100 % embarqué** : aucune connexion réseau, conforme aux règles de
-  `extensions.blender.org` (limite ~200 Mo/ZIP, pas de téléchargement externe).
-- Modèle **tiny** embarqué (le seul qui tient sous la limite de 200 Mo une fois
-  onnxruntime + OpenCV inclus). Le sélecteur de modèle reste extensible.
+- **CPU by default**, **GPU used when available** (best-effort).
+- **Fully self-contained**: no network access at any point, in line with the
+  `extensions.blender.org` rules (~200 MB per ZIP, no external downloads).
+- The **tiny** model is bundled — the only variant that fits under the 200 MB
+  cap once ONNX Runtime and OpenCV are included. The model selector stays
+  extensible for off-platform builds.
 
-> ⚠️ SAM 2 n'a pas d'export ONNX du **mode vidéo** (memory attention — voir
+> ⚠️ SAM 2 has no ONNX export of its **video mode** (memory attention — see
 > [facebookresearch/sam2#702](https://github.com/facebookresearch/sam2/issues/702)).
-> Le suivi temporel est donc assuré par **flux optique (OpenCV)** : le masque et les
-> points de la frame N sont advectés vers N+1, puis SAM ré-affine à chaque frame.
+> Temporal tracking is therefore done with **optical flow (OpenCV)**: the mask
+> and points from frame N are advected to N+1, then SAM re-refines every frame.
 
-## Périmètre
+## Scope
 
-- **Windows x64** et **Linux x64**, Blender **5.1** minimum (Python 3.13 ; wheels cp313).
-  Pour cibler Blender 4.2–5.0 (Python 3.11), régénérer en cp311 — voir `PY_TAG` dans
-  `scripts/fetch_assets.py` et `blender_version_min` dans le manifest.
-- Uniquement le **VSE** (strips vidéo / séquences d'images).
-- **GPU** : DirectML sur Windows (NVIDIA/AMD/Intel, sans CUDA). Linux tourne en CPU
-  (le paquet onnxruntime-gpu/CUDA dépasserait la limite de 200 Mo).
+- **Windows x64**, **Linux x64** and **macOS Apple Silicon** (macOS 13+),
+  Blender **5.1** or newer (Python 3.13, cp313 wheels). To target Blender
+  4.2–5.0 (Python 3.11), regenerate with cp311 — see `PY_TAG` in
+  `scripts/fetch_assets.py` and `blender_version_min` in the manifest.
+  macOS Intel is not a target: Blender itself dropped it at 5.0.
+- **VSE only** (movie strips / image sequences).
+- **GPU**: DirectML on Windows (NVIDIA/AMD/Intel, no CUDA install needed),
+  CoreML on macOS. Linux runs on CPU — the onnxruntime-gpu/CUDA package would
+  blow the size cap.
 
-## Structure
+> ⚠️ Only the **Windows** package has actually been installed and run. The Linux
+> and macOS packages build with the right wheels but are untested — see
+> [RELEASE.md](RELEASE.md) §0 before publishing them.
+
+**Performance.** The image encoder dominates: measured at 1080p on the dev
+machine, ~**3.7 s/frame** on CPU and ~**1.2 s/frame** on DirectML; the decoder is
+50–90 ms. Input is resized to 1024², so source resolution barely affects it.
+This is an offline tool, not a real-time one.
+
+## Layout
 
 ```
-auto_rotoscope/            # le package de l'extension (ce qui est zippé)
+auto_rotoscope/            # the extension package (this is what gets zipped)
   blender_manifest.toml
   __init__.py              # register()/unregister(), keymap
-  preferences.py           # device (Auto/CPU/GPU), dossier de sortie
-  properties.py            # état de session (points +/-, plage, modèle)
+  preferences.py           # device (Auto/CPU/GPU), output folder
+  properties.py            # session state (+/- points, range, model)
   engine/
-    ort_session.py         # sélection de l'ExecutionProvider (DirectML→CPU)
-    loader.py              # chargement/cache des sessions ONNX
-    sam2.py                # pipeline image SAM 2.1 (encoder/decoder ONNX)
-    propagate.py           # propagation par flux optique (Farneback)
+    ort_session.py         # execution-provider selection (DirectML → CPU)
+    loader.py              # ONNX session loading and caching
+    sam2.py                # SAM 2.1 image pipeline (encoder/decoder ONNX)
+    maskproc.py            # single-shape cleanup, feathering, contours
+    propagate.py           # optical-flow propagation (Farneback)
   ops/
-    common.py              # lecture des frames du strip, aperçu image
-    op_pick.py             # picking modal (clic = +, Ctrl+clic = −)
-    op_track.py            # propagation + export de la séquence de mattes
-    op_clear.py            # reset des points
+    common.py              # strip frame reading, preview helpers
+    op_pick.py             # modal picking (click = +, Ctrl+click = −)
+    op_track.py            # interactive propagation + matte export
+    op_clear.py            # point reset
+    output.py              # matte PNG writing, result strip
   ui/
-    panel_vse.py           # panneau latéral "SAM2 Roto" dans le VSE
-  models/                  # <- ONNX SAM 2.1 tiny (récupéré par le script)
-  wheels/                  # <- wheels onnxruntime + opencv (récupérées)
-  licenses/                # NOTICE + licences tierces
+    panel_vse.py           # "SAM2 Roto" sidebar panel in the VSE
+    overlay.py             # mask outline drawn over the preview
+  models/                  # <- SAM 2.1 tiny ONNX (fetched by the script)
+  wheels/                  # <- onnxruntime + opencv wheels (fetched)
+  licenses/                # NOTICE + full third-party license texts
 scripts/
-  fetch_assets.py          # télécharge modèles + wheels, imprime le bloc wheels[]
+  fetch_assets.py          # downloads models + wheels, rewrites wheels[]
+  build.py                 # builds dist/*.zip and checks them against the rules
+  smoke_test.py            # end-to-end check of the installed extension
+  make_icon.py             # generates branding/icon_*.png for the store listing
 ```
 
-## Préparer les dépendances (avant build)
+## Release workflow
 
-Les gros binaires (wheels + modèle ONNX) ne sont **pas** versionnés. Les récupérer :
+See **[RELEASE.md](RELEASE.md)** for the full submission walkthrough. The short
+version:
 
 ```bash
-python scripts/fetch_assets.py
+python scripts/fetch_assets.py     # once — downloads model + wheels (~250 MB)
+python scripts/build.py            # -> dist/*.zip, validated and size-checked
+
+blender --command extension install-file -r user_default -e dist/auto_rotoscope-0.1.0-windows_x64.zip
+blender -b --python scripts/smoke_test.py
 ```
 
-Le script télécharge le modèle SAM 2.1 tiny (encoder/decoder ONNX) et les wheels
-(`onnxruntime-directml` pour Windows, `onnxruntime` pour Linux, `opencv-python-headless`
-pour les deux — `numpy` est fourni par Blender), puis imprime la liste `wheels = [...]`
-exacte à coller dans `auto_rotoscope/blender_manifest.toml`.
+`scripts/build.py` finds Blender automatically (or pass `--blender <path>` /
+set `$BLENDER`), empties `dist/`, runs `extension validate` and
+`extension build --split-platforms`, then verifies every ZIP: under the 200 MB
+cap, correct wheels for the platform, required files present, no `__pycache__`
+or nested archives.
 
-## Build de l'extension
+## Using it
 
-```bash
-cd auto_rotoscope
-blender --command extension validate
-blender --command extension build --split-platforms
-# -> un .zip par plateforme (chacun doit rester < 200 Mo)
-```
+`Edit > Preferences > Get Extensions > (dropdown) Install from Disk…`, pick the
+ZIP for your platform.
 
-## Installer / tester
+In a **Video Editing** workspace: select a movie strip, open the sidebar (`N`) →
+**SAM2 Roto** tab. Then **Pick** (click the object, or press `L` in the preview),
+then **Track & Export Matte**.
 
-`Edit > Preferences > Get Extensions > (menu) Install from Disk…` puis choisir le ZIP.
+During tracking: `Space` play/pause, `←`/`→` step, `Enter` finish, `Esc` cancel.
+Mattes are written as you go, so partial results always survive a cancel.
 
-Dans un espace **Video Editing** : sélectionner un strip vidéo, ouvrir le panneau
-latéral (`N`) → onglet **SAM2 Roto**. Étapes : **Pick** (cliquer l'objet, `L` dans
-l'éditeur d'image), puis **Track & Export Matte**.
+## Platform compliance notes
 
-## Notes de conformité (plateforme)
+- No `network` permission — everything is bundled and works offline. The smoke
+  test asserts this by poisoning `socket.socket` during a model load.
+- `files` permission declared (writing the generated matte sequences).
+- Plain-text Python, no bytecode, no obfuscation.
+- Wheels are unmodified PyPI artifacts under `./wheels/`.
+- GPL-3.0-or-later; the SAM 2.1 model is Apache-2.0 (compatible, redistributable).
 
-- Aucune permission `network` (tout est embarqué, fonctionne hors-ligne).
-- Permission `files` déclarée (écriture des séquences de mattes générées).
-- Code lisible, pas de bytecode.
-- Wheels non modifiées, issues de PyPI, sous `./wheels/`.
-- Licence GPL-3.0-or-later ; modèle SAM 2.1 sous Apache-2.0 (compatible, redistribuable).
+## `abi3` wheel caveat
 
-## Caveat wheels `abi3`
+The OpenCV wheels are tagged `cp37-abi3`. Some Blender versions had trouble
+recognising `abi3` tags (they expected `cp313`). If the extension rejects the
+OpenCV wheel, rename `...-cp37-abi3-...` to `...-cp313-abi3-...` and update the
+manifest to match. Blender 5.2 accepts the `cp37-abi3` tag as-is.
 
-Les wheels d'OpenCV sont taguées `cp37-abi3`. Certaines versions de Blender ont eu du mal
-à reconnaître les tags `abi3` (elles attendaient `cp311`). Si l'extension refuse la wheel
-OpenCV, renommer le fichier `...-cp37-abi3-...` en `...-cp311-abi3-...` et ajuster le
-manifest en conséquence.
-
-## Licences tierces
+## Third-party licenses
 
 - **SAM 2.1** — Apache-2.0 (Meta Platforms, Inc.)
 - **onnxruntime / onnxruntime-directml** — MIT (Microsoft)
-- **opencv-python-headless** — Apache-2.0
+- **opencv-python-headless** — Apache-2.0 (OpenCV) / MIT (packaging)
 
-Voir `auto_rotoscope/licenses/NOTICE.txt`.
+Full texts in [auto_rotoscope/licenses/](auto_rotoscope/licenses/); see
+[NOTICE.txt](auto_rotoscope/licenses/NOTICE.txt).
